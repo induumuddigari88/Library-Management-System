@@ -42,12 +42,13 @@ function renderMembers(members) {
   const isAdmin = currentUserRole === 'admin';
 
   if (!members.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="loading-row">No members found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading-row">No members found</td></tr>`;
     return;
   }
   tbody.innerHTML = members.map((m, i) => `
     <tr>
       <td>${i + 1}</td>
+      <td style="font-size:12px;color:var(--text-muted);font-family:monospace">#${m.id}</td>
       <td><strong>${m.full_name}</strong></td>
       <td>${m.email}</td>
       <td>${m.phone || '—'}</td>
