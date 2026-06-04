@@ -15,8 +15,35 @@ fines_bp = Blueprint("fines", __name__)
 def get_fines():
     conn, cursor = get_db()
     try:
-        cursor.execute(
-            """
+        # Generate fines for overdue books
+        cursor.execute("""
+            SELECT id, member_id, due_date
+            FROM borrows
+            WHERE status = 'active'
+            AND due_date < CURDATE()
+            AND id NOT IN (SELECT borrow_id FROM fines)
+        """)
+
+        overdue_borrows = cursor.fetchall()
+
+        for borrow in overdue_borrows:
+            days_overdue = (date.today() - borrow["due_date"]).days
+
+            if days_overdue > 0:
+                fine_amount = days_overdue * 5  # ₹5 per day
+
+                cursor.execute("""
+                    INSERT INTO fines (borrow_id, member_id, amount)
+                    VALUES (%s, %s, %s)
+                """, (
+                    borrow["id"],
+                    borrow["member_id"],
+                    fine_amount
+                ))
+
+        conn.commit()
+
+        cursor.execute("""
             SELECT
                 f.id            AS fine_id,
                 m.full_name     AS member_name,
@@ -28,20 +55,20 @@ def get_fines():
             FROM fines f
             JOIN members m  ON m.id  = f.member_id
             JOIN borrows b  ON b.id  = f.borrow_id
-            JOIN books   bk ON bk.id = b.book_id
+            JOIN books bk   ON bk.id = b.book_id
             ORDER BY f.is_paid ASC, f.id DESC
-            """
-        )
+        """)
+
         fines = cursor.fetchall()
+
         return jsonify({
             "total_fines": len(fines),
             "fines": fines
         }), 200
+
     finally:
         cursor.close()
         conn.close()
-
-
 # ---------------------------------------------------------------------------
 # GET /fines/unpaid — View only unpaid fines
 # ---------------------------------------------------------------------------
@@ -93,7 +120,10 @@ def fines_collected():
             "SELECT SUM(amount) AS total_collected FROM fines WHERE is_paid=TRUE"
         )
         result = cursor.fetchone()
-        total  = result["total_collected"] or 0
+        if isinstance(result, (list, tuple)):
+            total = result[0] or 0
+        else:
+            total = result.get("total_collected") or 0
         return jsonify({
             "total_collected": float(total)
         }), 200

@@ -1,7 +1,20 @@
-
-
 const BASE = 'http://127.0.0.1:5000';
 let currentTab = 'active';
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const str = String(dateStr);
+  // If it looks like YYYY-MM-DD (ISO), parse directly to avoid timezone shift
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(isoMatch[3])} ${months[parseInt(isoMatch[2]) - 1]} ${isoMatch[1]}`;
+  }
+  // Fallback: parse as Date and format in IST
+  const d = new Date(str);
+  if (isNaN(d)) return str;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+}
 
 function switchTab(tab) {
   currentTab = tab;
@@ -31,8 +44,8 @@ function renderActive(rows) {
       <td>${i + 1}</td>
       <td><strong>${r.member_name}</strong><br><span style="color:var(--text-muted);font-size:12px">${r.member_email}</span></td>
       <td>${r.book_title}<br><span style="color:var(--text-muted);font-size:12px">${r.book_author}</span></td>
-      <td>${r.borrow_date}</td>
-      <td>${r.due_date}</td>
+      <td>${formatDate(r.borrow_date)}</td>
+      <td>${formatDate(r.due_date)}</td>
       <td><span class="badge badge-warning">Active</span></td>
       <td>
         <button class="btn-icon btn-icon-pay" onclick="confirmReturn(${r.borrow_id}, '${r.book_title.replace(/'/g,"\\'")}', '${r.member_name.replace(/'/g,"\\'")}')">
@@ -63,8 +76,8 @@ function renderOverdue(rows) {
       <td>${i + 1}</td>
       <td><strong>${r.member_name}</strong><br><span style="color:var(--text-muted);font-size:12px">${r.member_email}</span></td>
       <td>${r.book_title}<br><span style="color:var(--text-muted);font-size:12px">${r.book_author}</span></td>
-      <td>${r.borrow_date}</td>
-      <td>${r.due_date}</td>
+      <td>${formatDate(r.borrow_date)}</td>
+      <td>${formatDate(r.due_date)}</td>
       <td><span class="badge badge-danger">${r.days_overdue} days overdue</span></td>
       <td>
         <span style="color:var(--danger);font-weight:600;font-size:12px">₹${r.fine_if_returned_today}</span>
