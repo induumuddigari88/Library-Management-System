@@ -24,6 +24,7 @@ async function staffLogin() {
 
   if (!res.ok) { errEl.textContent = data.message; return; }
 
+  sessionStorage.setItem('user_role', data.role);
   window.location.href = data.role === 'member' ? '/member-dashboard' : '/dashboard';
 }
 

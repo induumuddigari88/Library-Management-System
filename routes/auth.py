@@ -37,23 +37,21 @@ def role_required(*roles):
 def register():
     data = request.get_json()
 
-    # --- Input validation ---
     username = data.get("username", "").strip()
     email    = data.get("email", "").strip()
     password = data.get("password", "").strip()
     role     = data.get("role", "").strip()
 
-    if not username or not email or not password:
-        return jsonify({"message": "Username, email, and password are required"}), 400
+    if not username or not email:
+        return jsonify({"message": "Username and email are required"}), 400
 
-    # --- Role is required and must be admin, librarian, or member ---
     valid_roles = ("admin", "librarian", "member")
+    if not role or role not in valid_roles:
+        return jsonify({"message": "Valid role is required (admin, librarian, or member)"}), 400
 
-    if not role:
-        return jsonify({"message": "Role is required"}), 403
-
-    if role not in valid_roles:
-        return jsonify({"message": "Access Denied. Role must be admin, librarian, or member"}), 403
+    # Staff roles require a password; members do not
+    if role in ("admin", "librarian") and not password:
+        return jsonify({"message": "Password is required for staff accounts"}), 400
 
     conn, cursor = get_db()
     try:
@@ -64,26 +62,29 @@ def register():
         if cursor.fetchone():
             return jsonify({"message": "User already exists"}), 400
 
-        hashed_password = generate_password_hash(password).decode("utf-8")
+        # Hash password for staff; use empty string for members (they log in via name+email)
+        hashed_password = generate_password_hash(password).decode("utf-8") if password else ""
 
         cursor.execute(
             "INSERT INTO users (username, email, password, role) VALUES (%s, %s, %s, %s)",
             (username, email, hashed_password, role)
         )
-        
-        # Get the newly created user_id
+
         user_id = cursor.lastrowid
-        
-        # If registering as member, create member profile automatically
+
+        # Auto-create member profile for member role
         if role == "member":
             cursor.execute(
                 "INSERT INTO members (user_id, full_name, email, phone) VALUES (%s, %s, %s, %s)",
                 (user_id, username, email, None)
             )
-        
+
         conn.commit()
         return jsonify({"message": "Registration Successful"}), 201
 
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"message": f"Registration failed: {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
